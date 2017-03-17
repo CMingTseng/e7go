@@ -1,0 +1,194 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:2.3.0'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        jcenter()
+        flatDir {
+            dirs 'libs'
+        }
+    }
+}
+
+def getVersionNameSuffixDebug = { ->
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'describe', '--tags', '--long', '--always'
+            standardOutput = stdout
+        }
+        def describe = stdout.toString().trim().split("-")
+        return '-' + describe[1] + '-' + describe[2]
+    }
+    catch (ignored) {
+        return "unspecified";
+    }
+}
+
+def getVersionCode = { ->
+    try {
+        def code = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'tag', '--list'
+            standardOutput = code
+        }
+        return code.toString().split("\n").size()
+    }
+    catch (ignored) {
+        return -1;
+    }
+}
+
+def getVersionName = { ->
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'describe', '--tags', '--long'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    }
+    catch (ignored) {
+        return null;
+    }
+}
+
+def getBranchName = { ->
+    try {
+        def code = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'status'
+            standardOutput = code
+        }
+        return code.toString().split("Your")[0].replace("On branch ", "").trim()
+    }
+    catch (ignored) {
+        return -1;
+    }
+}
+
+def getGitSHA1Hash = { ->
+    try {
+        def sha1hash = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'show', '--format="%h"', '--abbrev=4', '-q'
+            standardOutput = sha1hash
+        }
+
+        return Integer.valueOf(sha1hash.toString().trim(), 16);
+    }
+    catch (ignored) {
+        return 0
+    }
+}
+
+def getNickVersionName = { ->
+    def formatuic = getVersionName().split("-")
+    def ori = "%s.%05d-Nick"
+    def outs = String.format(ori, formatuic[0], Integer.parseInt(formatuic[1]));
+    return outs;
+}
+
+def getGitCommitId = { ->
+    def formatuic = getVersionName().split("-")
+    return formatuic[2];
+}
+
+def getCheckedOutGitCommitHash() {
+    def gitFolder = "$projectDir/.git/"
+    def takeFromHash = 12
+    /*
+     * '.git/HEAD' contains either
+     *      in case of detached head: the currently checked out commit hash
+     *      otherwise: a reference to a file containing the current commit hash
+     */
+    def head = new File(gitFolder + "HEAD").text.split(":") // .git/HEAD
+    def isCommit = head.length == 1 // e5a7c79edabbf7dd39888442df081b1c9d8e88fd
+    // def isRef = head.length > 1     // ref: refs/heads/master
+
+    if (isCommit) return head[0].trim().take(takeFromHash) // e5a7c79edabb
+
+    def refHead = new File(gitFolder + head[1].trim()) // .git/refs/heads/master
+    refHead.text.trim().take takeFromHash
+}
+
+def getAuthorName = { ->
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'config', '--global', '--get', 'user.name'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    }
+    catch (ignored) {
+        return "";
+    }
+}
+
+def getAuthorEmail = { ->
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'config', '--global', '--get', 'user.email'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim() + ',manhua@drnh.gov.tw'
+    }
+    catch (ignored) {
+        return "manhua@drnh.gov.tw";
+    }
+}
+
+def buildTime() {
+    return new Date().format("yyyyMMdd", TimeZone.getTimeZone("UTC"))
+}
+
+//def buildTime() {
+//    def df = new SimpleDateFormat("yyyy_MMdd_HHmm")
+//    df.setTimeZone(TimeZone.getDefault())
+//    return df.format(new Date())
+//}
+
+ext {
+    compileSdkVersion = 25
+    buildToolsVersion = '25.0.2'
+    supportLibVersion = '25.3.0'
+    runnerVersion = '0.5'
+    rulesVersion = '0.5'
+    UiAutomatorLibVersion = '2.1.2'
+    FirebaseLibVersion = '10.0.0'
+    versionCode = getVersionCode()
+    versionName = getVersionName()
+    versionNameSuffixDebug = getVersionNameSuffixDebug()
+    appbuildTime = buildTime()
+    authorName = getAuthorName()
+    authorEmail = getAuthorEmail()
+//    authorEmail = getAllAuthorEmail()
+    bracnch = getBranchName()
+    JDKCompatibility = JavaVersion.VERSION_1_7
+    JDKTargetCompatibility = JavaVersion.VERSION_1_7
+    // for mylib, unused, but needs them so gradle don't complain.
+    pomGroupId = 'chang.ming.tseng'
+// project homepage
+    scmUrl = 'https://github.com/CMingTseng/My_Android_Project_Basic_Lib'
+// project git
+    scmConnectionUrl = 'https://github.com/CMingTseng/My_Android_Project_Basic_Lib.git'
+// project git
+    scmDeveloperConnectionUrl = 'git+ssh://github.com/CMingTseng/My_Android_Project_Basic_Lib.git'
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}

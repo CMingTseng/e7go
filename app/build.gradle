@@ -1,0 +1,253 @@
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    dexOptions {
+        javaMaxHeapSize "8192M"
+    }
+    lintOptions {
+        abortOnError false
+    }
+    defaultConfig {
+        applicationId = "tw.haotek.app.e7go"
+        minSdkVersion 16
+        targetSdkVersion 22
+        versionCode rootProject.ext.versionCode
+        versionName rootProject.ext.versionName
+        buildConfigField "String", "AUTHOR_EMAIL", "\"" + rootProject.ext.authorEmail + "\""
+        resValue "string", "author_name", rootProject.ext.authorName
+        resValue "string", "author_email", rootProject.ext.authorEmail
+        resValue "string", "author_name_email", "${rootProject.ext.authorName} <${rootProject.ext.authorEmail}>"
+        resValue "string", "tray__authority", "${applicationId}.tray"
+        multiDexEnabled true
+//        manifestPlaceholders = [ UMENG_CHANNEL_VALUE:"default_channel" ]
+        //FIXME For use vectors http://android-developers.blogspot.tw/2016/02/android-support-library-232.html
+        //FIXME https://medium.com/@chrisbanes/appcompat-v23-2-age-of-the-vectors-91cbafa87c88#.8jrovbbln
+        //FIXME http://www.mobile-open.com/2016/102194.html
+        generatedDensities = []
+        aaptOptions {
+            additionalParameters "--no-version-vectors"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility rootProject.ext.JDKCompatibility
+        targetCompatibility rootProject.ext.JDKTargetCompatibility
+    }
+
+    productFlavors {
+        e7go {
+            applicationId = "tw.haotek.app.e7go"
+            versionCode getVersionCode()
+            versionName getVersionName()
+        }
+
+        signingConfigs {
+//            release {
+//                keyAlias 'release' //'FIXME  YourKeyAlias'
+//                keyPassword props['keystore.password']//'FIXME  YourKeyPassword
+//                storeFile file(props['keystore'])
+//                storePassword props['keystore.password']//'FIXME  YourStorePassword
+//            }
+//            debug {
+//                keyAlias 'debug'
+//                keyPassword props['keystore.password']
+//                storeFile file(props['keystore'])
+//                storePassword props['keystore.password']
+//            }
+        }
+
+
+        buildTypes {
+            release {
+//              signingConfig signingConfigs.release
+                minifyEnabled true //proguard  Yes / No
+                proguardFile 'proguard-rules/proguard-gson.pro'
+                proguardFile 'proguard-rules/proguard-jackson-2.pro'
+                proguardFile 'proguard-rules/proguard-square-okio.pro'
+                proguardFile 'proguard-rules/proguard-square-okhttp3.pro'
+                proguardFile 'proguard-rules/proguard-square-retrofit2.pro'
+                proguardFile 'proguard-rules/proguard-support-design.pro'
+                proguardFile 'proguard-rules/proguard-support-v7-appcompat.pro'
+                proguardFile 'proguard-rules/proguard-support-v7-cardview.pro'
+                proguardFile 'proguard-rules/proguard-activeandroid.pro'
+                proguardFile 'proguard-rules/proguard-google-play-services.pro'
+// http://stackoverflow.com/questions/12390466/android-proguard-not-removing-all-log-messages
+                proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+                shrinkResources true
+                debuggable false
+                jniDebuggable false
+                renderscriptDebuggable false
+                zipAlignEnabled true
+            }
+
+            debug {
+//                signingConfig signingConfigs.debug
+                shrinkResources false
+                zipAlignEnabled true
+                minifyEnabled false
+                debuggable true
+                jniDebuggable true
+                renderscriptDebuggable true
+                resValue "string", "tray__authority", "${defaultConfig.applicationId}${applicationIdSuffix}.tray"
+            }
+        }
+
+        applicationVariants.all { variant ->
+            variant.outputs.each { output ->
+                def outputFile = output.outputFile
+                if (outputFile != null && outputFile.name.endsWith('.apk')) {
+//                    def fileName = outputFile.name.replace('.apk', "-" + getVersionName() + ".apk")
+//                    def fileName = "${variant.productFlavors[0].name}_${variant.productFlavors[0].versionName}_${buildTime()}.apk"
+                    def fileName = "${variant.productFlavors[0].name}_${variant.productFlavors[0].versionName}.apk"
+                    output.outputFile = new File(outputFile.parent, fileName)
+                }
+            }
+        }
+
+        lintOptions {
+            checkReleaseBuilds false
+            // Or, if you prefer, you can continue to check for errors in release builds,
+            // but continue the build even when errors are found:
+            abortOnError false
+        }
+
+        packagingOptions {
+            exclude 'META-INF/LICENSE.txt'
+            exclude 'META-INF/notice.txt'
+            exclude 'META-INF/license.txt'
+            exclude 'META-INF/DEPENDENCIES'
+            exclude 'META-INF/NOTICE'
+            exclude 'META-INF/NOTICE.txt'
+            exclude 'META-INF/LICENSE'
+            exclude 'META-INF/LICENSE.txt'
+            exclude 'META-INF/LICENSE'
+            exclude 'META-INF/ASL2.0'
+            exclude 'META-INF/DEPENDENCIES.txt'
+            exclude 'META-INF/DEPENDENCIES'
+            exclude 'META-INF/dependencies.txt'
+            exclude 'META-INF/LICENSE.txt'
+            exclude 'META-INF/LICENSE'
+            exclude 'META-INF/license.txt'
+            exclude 'META-INF/LGPL2.1'
+            exclude 'META-INF/NOTICE.txt'
+            exclude 'META-INF/NOTICE'
+            exclude 'META-INF/notice.txt'
+        }
+    }
+
+    task copyNativeLibs(type: Copy) {
+        //load NDK so
+        from 'libs/armeabi'
+        into 'src/main/jniLibs/armeabi'
+    }
+
+    tasks.withType(JavaCompile) { compileTask -> compileTask.dependsOn copyNativeLibs }
+
+    task saveBuildLogInfo {
+        group = 'other'
+        doFirst {
+            // get the current commit hash in git
+            def git_log = new ByteArrayOutputStream()
+            exec {
+                commandLine 'git', 'log', '--since=1.weeks'
+                standardOutput = git_log
+            }
+            git_log = git_log.toString().trim()
+
+            // save the combined build info into assets/build.info file
+            def result_line = git_log
+            def assetsDir = "$projectDir/build/"
+            def buildInfoFile = new File(assetsDir, 'gitlog.txt').getAbsolutePath()
+            new File(buildInfoFile).text = git_log
+        }
+    }
+
+//    tasks.withType(JavaCompile) { compileTask -> compileTask.dependsOn saveBuildLogInfo }
+//https://blog.devdroids.com/stop-code-style-wars-with-checkstyle-bc1b9f152b1b#.n697qx4ey
+// Add checkstyle to the check task.
+//check.dependsOn 'checkstyle'
+    task checkstyle(type: Checkstyle) {
+        group = 'other'
+        source 'src'
+        include '**/*.java'
+        exclude '**/gen/**'
+        exclude '**/R.java'
+        exclude '**/BuildConfig.java'
+
+        def configProps = ['proj.module.dir': projectDir.absolutePath]
+        configProperties configProps
+
+        configFile = file("${projectDir}/checkstyle.xml")
+
+        classpath = files()
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    tasks.withType(Javadoc).all { enabled = false }
+
+    task androidJavadocs(type: Javadoc) {
+        source = android.sourceSets.main.java.srcDirs
+    }
+
+    task sourcesJar(type: Jar) {
+        from android.sourceSets.main.java.srcDirs
+        classifier = 'sources'
+    }
+
+    task javadoc(type: Javadoc) {
+        options.encoding = "utf-8"
+        options.charSet = 'UTF-8'
+        source = android.sourceSets.main.java.srcDirs
+        classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+        failOnError false //过滤注释错误(不标准)
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+
+    artifacts {
+        archives javadocJar
+        archives sourcesJar
+    }
+
+    dependencies {
+        compile fileTree(dir: 'libs', include: ['*.jar'])
+        testCompile 'junit:junit:4.12'
+        compile "com.android.support:support-annotations:${rootProject.ext.supportLibVersion}"
+        compile "com.android.support:appcompat-v7:${rootProject.ext.supportLibVersion}"
+        compile "com.android.support:design:${rootProject.ext.supportLibVersion}"
+        compile "com.android.support:recyclerview-v7:${rootProject.ext.supportLibVersion}"
+        compile "com.android.support:cardview-v7:${rootProject.ext.supportLibVersion}"
+        compile "com.android.support:support-v13:${rootProject.ext.supportLibVersion}"
+//     //Support lib
+        compile 'com.squareup.okhttp:okhttp:+'
+        compile 'com.squareup.picasso:picasso:2.5.2'
+        compile 'com.google.code.gson:gson:+'
+        compile 'com.squareup.okhttp:okhttp-urlconnection:+'
+
+        //RxJava2
+//      compile 'io.reactivex.rxjava2:rxjava:2.0.0'
+//      compile 'io.reactivex.rxjava2:rxandroid:2.0.0'
+        //Retrofit2
+        compile 'com.squareup.retrofit2:retrofit:+'
+        compile 'com.squareup.retrofit2:converter-gson:+'
+        //okhttp3
+        compile 'com.squareup.okhttp3:okhttp:+'
+        //logging
+        compile 'com.squareup.okhttp3:logging-interceptor:+'
+
+        compile 'com.telly:mrvector:+'
+        compile "org.jboss.netty:netty:latest.integration"
+        compile 'me.relex:circleindicator:1.1.5@aar'
+//      compile 'com.github.wseemann:FFmpegMediaMetadataRetriever:1.0.2'
+//      compile 'com.github.bumptech.glide:glide:3.6.1'
+//      compile 'com.shamanland:fab:+'
+    }
+}
